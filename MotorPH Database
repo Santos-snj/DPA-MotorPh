@@ -58,15 +58,6 @@ CREATE TABLE Shift (
     PRIMARY KEY (shift_id)
 );
 
-CREATE TABLE Overtime (
-    ot_id INT NOT NULL AUTO_INCREMENT,
-    ot_hours INT,
-    multiplier DECIMAL(5,2),
-    date DATE,
-    approved_by VARCHAR(50),
-    PRIMARY KEY (ot_id)
-);
-
 CREATE TABLE Benefit (
     benefit_type_id INT NOT NULL AUTO_INCREMENT,
     description VARCHAR(50),
@@ -103,9 +94,11 @@ CREATE TABLE Position (
     FOREIGN KEY (department_id) REFERENCES Department(department_id)
 );
 
+-- FIX: Added lower_amount column
 CREATE TABLE Deduction (
     deduction_id INT NOT NULL AUTO_INCREMENT,
     deduction_type_id INT,
+    lower_amount DECIMAL(10,2),
     upper_amount DECIMAL(10,2),
     tax_base DECIMAL(10,2),
     b_rate DECIMAL(10,2),
@@ -136,7 +129,7 @@ CREATE TABLE Employee_Profile (
     employee_id INT NOT NULL AUTO_INCREMENT,
     last_name VARCHAR(50),
     first_name VARCHAR(50),
-    address_id INT, -- Pointed to Address ID
+    address_id INT, 
     birthday DATE,
     phone_number VARCHAR(15),
     hire_date DATE,
@@ -186,7 +179,7 @@ CREATE TABLE Audit_Log (
 );
 
 -- =========================================================================
--- 5. EMPLOYEE PROFILE DEPENDENTS (Level 4+ Dependencies)
+-- 5. EMPLOYEE PROFILE DEPENDENTS
 -- =========================================================================
 
 CREATE TABLE Government_IDs (
@@ -214,7 +207,7 @@ CREATE TABLE Address (
     FOREIGN KEY (employee_id) REFERENCES Employee_Profile(employee_id)
 );
 
--- Adding the back-reference constraint from Employee_Profile to Address
+-- Cross-reference constraint link
 ALTER TABLE Employee_Profile 
 ADD CONSTRAINT fk_employee_address 
 FOREIGN KEY (address_id) REFERENCES Address(address_id);
@@ -255,6 +248,18 @@ CREATE TABLE Attendance (
     PRIMARY KEY (attendance_id),
     FOREIGN KEY (employee_id) REFERENCES Employee_Profile(employee_id),
     FOREIGN KEY (shift_id) REFERENCES Shift(shift_id)
+);
+
+-- FIX: Placed Overtime table down here so attendance_id FK can reference Attendance(attendance_id) safely
+CREATE TABLE Overtime (
+    ot_id INT NOT NULL AUTO_INCREMENT,
+    attendance_id INT,
+    ot_hours INT,
+    multiplier DECIMAL(5,2),
+    date DATE,
+    approved_by VARCHAR(50),
+    PRIMARY KEY (ot_id),
+    FOREIGN KEY (attendance_id) REFERENCES Attendance(attendance_id)
 );
 
 -- =========================================================================
