@@ -291,7 +291,7 @@ CREATE TABLE IF NOT EXISTS Payroll_Deduction (
 );
 
 CREATE TABLE IF NOT EXISTS Payroll_Benefit (
-    payroll_benefit_id INT NOT NULL AUTO_INCREMENT,
+    payroll_benefit_id INT NOT NULL AUTO_INCREMENT,employee_profile
     payroll_id INT,
     benefit_type_id INT,
     benefit_amount DECIMAL(10,2),
