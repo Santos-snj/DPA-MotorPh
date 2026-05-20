@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS Shift (
 
 CREATE TABLE IF NOT EXISTS Benefit_Type (
     benefit_type_id INT NOT NULL AUTO_INCREMENT,
-    description VARCHAR(50),
+    description VARCHAR(100),
     benefit_amt DECIMAL(10,2),
     PRIMARY KEY (benefit_type_id)
 );
