@@ -1,0 +1,299 @@
+CREATE DATABASE IF NOT EXISTS employee_management_system;
+
+USE employee_management_system;
+
+CREATE TABLE IF NOT EXISTS Department (
+    department_id INT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(50),
+    description TEXT,
+    PRIMARY KEY (department_id)
+);
+
+CREATE TABLE IF NOT EXISTS Status (
+    status_id INT NOT NULL AUTO_INCREMENT,
+    status_name VARCHAR(20),
+    PRIMARY KEY (status_id)
+);
+
+CREATE TABLE IF NOT EXISTS Role (
+    role_id INT NOT NULL AUTO_INCREMENT,
+    role_name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT NULL,
+    created_date DATETIME,
+    last_modified DATETIME,
+    PRIMARY KEY (role_id)
+);
+
+CREATE TABLE IF NOT EXISTS Permission (
+    permission_id INT NOT NULL AUTO_INCREMENT,
+    permission_name VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT NULL,
+    PRIMARY KEY (permission_id)
+);
+
+CREATE TABLE IF NOT EXISTS Leave_Type (
+    leave_type_id INT NOT NULL AUTO_INCREMENT,
+    leave_name ENUM('Vacation leave', 'Sick leave', 'Emergency leave', 'Maternity leave', 'Paternity leave', 'Leave without pay'),
+    description VARCHAR(255) NULL,
+    max_days INT,
+    pay_flag BOOLEAN COMMENT 'Paid or Unpaid',
+    PRIMARY KEY (leave_type_id)
+);
+
+CREATE TABLE IF NOT EXISTS Pay_Period (
+    pay_period_id INT NOT NULL AUTO_INCREMENT,
+    start_date DATE,
+    end_date DATE,
+    PRIMARY KEY (pay_period_id)
+);
+
+CREATE TABLE IF NOT EXISTS Shift (
+    shift_id INT NOT NULL AUTO_INCREMENT,
+    shift_name VARCHAR(50),
+    start_time TIME,
+    end_time TIME,
+    PRIMARY KEY (shift_id)
+);
+
+CREATE TABLE IF NOT EXISTS Benefit_Type (
+    benefit_type_id INT NOT NULL AUTO_INCREMENT,
+    description VARCHAR(100),
+    benefit_amt DECIMAL(10,2),
+    PRIMARY KEY (benefit_type_id)
+);
+
+CREATE TABLE IF NOT EXISTS Deduction_Type (
+    deduction_type_id INT NOT NULL AUTO_INCREMENT,
+    deduction_type VARCHAR(50),
+    description VARCHAR(255),
+    PRIMARY KEY (deduction_type_id)
+);
+
+-- =========================================================================
+-- 2. TABLES WITH LEVEL 1 DEPENDENCIES
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS Role_Permission (
+    role_permission_id INT NOT NULL AUTO_INCREMENT,
+    role_id INT,
+    permission_id INT,
+    PRIMARY KEY (role_permission_id),
+    FOREIGN KEY (role_id) REFERENCES Role(role_id),
+    FOREIGN KEY (permission_id) REFERENCES Permission(permission_id)
+);
+
+CREATE TABLE IF NOT EXISTS Employee_Position (
+    position_id INT NOT NULL AUTO_INCREMENT,
+    department_id INT,
+    name VARCHAR(50),
+    description VARCHAR(215),
+    PRIMARY KEY (position_id),
+    FOREIGN KEY (department_id) REFERENCES Department(department_id)
+);
+
+-- FIX: Added lower_amount column
+CREATE TABLE IF NOT EXISTS Deduction (
+    deduction_id INT NOT NULL AUTO_INCREMENT,
+    deduction_type_id INT,
+    lower_amount DECIMAL(10,2),
+    upper_amount DECIMAL(10,2),
+    tax_base DECIMAL(10,2),
+    b_rate DECIMAL(10,2),
+    PRIMARY KEY (deduction_id),
+    FOREIGN KEY (deduction_type_id) REFERENCES Deduction_Type(deduction_type_id)
+);
+
+-- =========================================================================
+-- 3. TABLES WITH LEVEL 2 DEPENDENCIES
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS Position_Allowance (
+    position_allowance_id INT NOT NULL AUTO_INCREMENT,
+    position_id INT,
+    rice_subsidy DECIMAL(10,1),
+    phone_allowance DECIMAL(10,2),
+    clothing_allowance DECIMAL(10,2),
+    total_allowance DECIMAL(10,2),
+    PRIMARY KEY (position_allowance_id),
+    FOREIGN KEY (position_id) REFERENCES Employee_Position(position_id)
+);
+
+-- =========================================================================
+-- 4. CORE EMPLOYEE & USER STRUCTURES
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS Employee_Profile (
+    employee_id INT NOT NULL AUTO_INCREMENT,
+    last_name VARCHAR(50),
+    first_name VARCHAR(50),
+    address_id INT, 
+    birthday DATE,
+    phone_number VARCHAR(15),
+    hire_date DATE,
+    email VARCHAR(25),
+    department_id INT,
+    position_id INT,
+    status_id INT,
+    supervisor_id INT,
+    is_active BOOLEAN,
+    PRIMARY KEY (employee_id),
+    FOREIGN KEY (department_id) REFERENCES Department(department_id),
+    FOREIGN KEY (position_id) REFERENCES Employee_Position(position_id),
+    FOREIGN KEY (status_id) REFERENCES Status(status_id),
+    FOREIGN KEY (supervisor_id) REFERENCES Employee_Profile(employee_id)
+);
+CREATE TABLE IF NOT EXISTS User_Account (
+    user_id INT NOT NULL AUTO_INCREMENT,
+    employee_id INT,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_modified DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id),
+    FOREIGN KEY (employee_id) REFERENCES Employee_Profile(employee_id)
+);
+
+CREATE TABLE IF NOT EXISTS User_Role (
+    user_role_id INT NOT NULL AUTO_INCREMENT,
+    user_id INT,
+    role_id INT,
+    PRIMARY KEY (user_role_id),
+    FOREIGN KEY (user_id) REFERENCES User_Account(user_id),
+    FOREIGN KEY (role_id) REFERENCES Role(role_id)
+);
+
+CREATE TABLE IF NOT EXISTS Audit_Log (
+    log_id INT NOT NULL AUTO_INCREMENT,
+    user_id INT,
+    action VARCHAR(100),
+    entity_changed VARCHAR(100),
+    entity_id INT,
+    timestamp DATETIME,
+    PRIMARY KEY (log_id),
+    FOREIGN KEY (user_id) REFERENCES User_Account(user_id)
+);
+
+-- =========================================================================
+-- 5. EMPLOYEE PROFILE DEPENDENTS
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS Government_IDs (
+    government_id INT NOT NULL AUTO_INCREMENT,
+    sss_no VARCHAR(50),
+    philhealth_no VARCHAR(50),
+    pagibig_no VARCHAR(50),
+    tin_no VARCHAR(50),
+    employee_id INT,
+    PRIMARY KEY (government_id),
+    FOREIGN KEY (employee_id) REFERENCES Employee_Profile(employee_id)
+);
+
+CREATE TABLE IF NOT EXISTS Address (
+    address_id INT NOT NULL AUTO_INCREMENT,
+    house_no VARCHAR(20) NULL,
+    street VARCHAR(100) NULL,
+    barangay VARCHAR(100) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    province VARCHAR(100) NOT NULL,
+    postal_code VARCHAR(10) NOT NULL,
+    country VARCHAR(100) NOT NULL DEFAULT 'Philippines',
+    employee_id INT,
+    PRIMARY KEY (address_id),
+    FOREIGN KEY (employee_id) REFERENCES Employee_Profile(employee_id)
+);
+
+-- Cross-reference constraint link
+ALTER TABLE Employee_Profile 
+ADD CONSTRAINT fk_employee_address 
+FOREIGN KEY (address_id) REFERENCES Address(address_id);
+
+CREATE TABLE IF NOT EXISTS Salary_Details (
+    salary_id INT NOT NULL AUTO_INCREMENT,
+    employee_id INT,
+    basic_salary DECIMAL(10,2),
+    hourly_rate DECIMAL(10,2),
+    effective_date DATE,
+    end_date DATE,
+    PRIMARY KEY (salary_id),
+    FOREIGN KEY (employee_id) REFERENCES Employee_Profile(employee_id)
+);
+
+CREATE TABLE IF NOT EXISTS Leave_Request (
+    leave_request_id INT NOT NULL AUTO_INCREMENT,
+    employee_id INT,
+    leave_type_id INT,
+    start_date DATE,
+    end_date DATE,
+    status ENUM('Pending', 'Approved', 'Rejected'),
+    PRIMARY KEY (leave_request_id),
+    FOREIGN KEY (employee_id) REFERENCES Employee_Profile(employee_id),
+    FOREIGN KEY (leave_type_id) REFERENCES Leave_Type(leave_type_id)
+);
+
+CREATE TABLE IF NOT EXISTS Attendance (
+    attendance_id INT NOT NULL AUTO_INCREMENT,
+    employee_id INT,
+    date DATE,
+    time_in TIME,
+    time_out TIME,
+    hours_worked DECIMAL(5,2),
+    absences INT,
+    leave_without_pay DECIMAL(5,2),
+    shift_id INT,
+    PRIMARY KEY (attendance_id),
+    FOREIGN KEY (employee_id) REFERENCES Employee_Profile(employee_id),
+    FOREIGN KEY (shift_id) REFERENCES Shift(shift_id)
+);
+
+-- FIX: Placed Overtime table down here so attendance_id FK can reference Attendance(attendance_id) safely
+CREATE TABLE IF NOT EXISTS Overtime (
+    ot_id INT NOT NULL AUTO_INCREMENT,
+    attendance_id INT,
+    ot_hours INT,
+    multiplier DECIMAL(5,2),
+    date DATE,
+    approved_by VARCHAR(50),
+    PRIMARY KEY (ot_id),
+    FOREIGN KEY (attendance_id) REFERENCES Attendance(attendance_id)
+);
+
+-- =========================================================================
+-- 6. PAYROLL TRANSACTION TABLES
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS Payroll (
+    payroll_id INT NOT NULL AUTO_INCREMENT,
+    employee_id INT,
+    pay_period_id INT,
+    gross_pay DECIMAL(10,2),
+    net_pay DECIMAL(10,2),
+    total_deductions DECIMAL(10,2),
+    tax DECIMAL(10,2),
+    total_benefits DECIMAL(10,2),
+    payroll_date DATE,
+    PRIMARY KEY (payroll_id),
+    FOREIGN KEY (employee_id) REFERENCES Employee_Profile(employee_id),
+    FOREIGN KEY (pay_period_id) REFERENCES Pay_Period(pay_period_id)
+);
+
+CREATE TABLE IF NOT EXISTS Payroll_Deduction (
+    payroll_deduction_id INT NOT NULL AUTO_INCREMENT,
+    payroll_id INT,
+    deduction_id INT,
+    deduction_amount DECIMAL(10,2),
+    PRIMARY KEY (payroll_deduction_id),
+    FOREIGN KEY (payroll_id) REFERENCES Payroll(payroll_id),
+    FOREIGN KEY (deduction_id) REFERENCES Deduction(deduction_id)
+);
+
+CREATE TABLE IF NOT EXISTS Payroll_Benefit (
+    payroll_benefit_id INT NOT NULL AUTO_INCREMENT,
+    employee_profile varchar(50),
+    payroll_id INT,
+    benefit_type_id INT,
+    benefit_amount DECIMAL(10,2),
+    PRIMARY KEY (payroll_benefit_id),
+    FOREIGN KEY (payroll_id) REFERENCES Payroll(payroll_id),
+    FOREIGN KEY (benefit_type_id) REFERENCES Benefit_Type(benefit_type_id)
+);
