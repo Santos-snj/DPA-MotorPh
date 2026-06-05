@@ -4,28 +4,6 @@ USE motorph_employee_management_system;
 
 
 /*CORE EMPLOYEE MANAGEMENT*/
-
-CREATE TABLE IF NOT EXISTS employee_profile (
-    employee_id INT NOT NULL AUTO_INCREMENT,
-    last_name VARCHAR(50),
-    first_name VARCHAR(50),
-    address_id INT, 
-    birthday DATE,
-    phone_number VARCHAR(15),
-    hire_date DATE,
-    email VARCHAR(25),
-    department_id INT,
-    position_id INT,
-    status_id INT,
-    supervisor_id INT,
-    is_active BOOLEAN,
-    PRIMARY KEY (employee_id),
-    FOREIGN KEY (department_id) REFERENCES department(department_id),
-    FOREIGN KEY (position_id) REFERENCES employee_position(position_id),
-    FOREIGN KEY (status_id) REFERENCES Status(status_id),
-    FOREIGN KEY (supervisor_id) REFERENCES employee_profile(employee_id)
-);
-
 CREATE TABLE IF NOT EXISTS department (
     department_id INT NOT NULL AUTO_INCREMENT,
     name VARCHAR(50),
@@ -47,6 +25,28 @@ CREATE TABLE IF NOT EXISTS status (
     status_name VARCHAR(20),
     PRIMARY KEY (status_id)
 );
+
+CREATE TABLE IF NOT EXISTS employee_profile (
+    employee_id INT NOT NULL AUTO_INCREMENT,
+    last_name VARCHAR(50),
+    first_name VARCHAR(50),
+    address_id INT, 
+    birthday DATE,
+    phone_number VARCHAR(15),
+    hire_date DATE,
+    email VARCHAR(25),
+    department_id INT,
+    position_id INT,
+    status_id INT,
+    supervisor_id INT,
+    is_active BOOLEAN,
+    PRIMARY KEY (employee_id),
+    FOREIGN KEY (department_id) REFERENCES department(department_id),
+    FOREIGN KEY (position_id) REFERENCES employee_position(position_id),
+    FOREIGN KEY (status_id) REFERENCES status(status_id),
+    FOREIGN KEY (supervisor_id) REFERENCES employee_profile(employee_id)
+);
+
 
 CREATE TABLE IF NOT EXISTS address (
     address_id INT NOT NULL AUTO_INCREMENT,
@@ -75,7 +75,6 @@ CREATE TABLE IF NOT EXISTS government_ids (
 
 
 /*USER ACCESS AND SECURITY*/
-
 CREATE TABLE IF NOT EXISTS user_account (
     user_id INT NOT NULL AUTO_INCREMENT,
     employee_id INT,
@@ -135,7 +134,6 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 
 /*ATTENDANCE AND LEAVE MANAGEMENT*/
-
 CREATE TABLE IF NOT EXISTS shift (
     shift_id INT NOT NULL AUTO_INCREMENT,
     shift_name VARCHAR(50),
@@ -159,6 +157,15 @@ CREATE TABLE IF NOT EXISTS attendance (
     FOREIGN KEY (shift_id) REFERENCES shift(shift_id)
 );
 
+CREATE TABLE IF NOT EXISTS leave_type (
+    leave_type_id INT NOT NULL AUTO_INCREMENT,
+    leave_name ENUM('Vacation leave', 'Sick leave', 'Emergency leave', 'Maternity leave', 'Paternity leave', 'Leave without pay'),
+    description VARCHAR(255) NULL,
+    max_days INT,
+    pay_flag BOOLEAN COMMENT 'Paid or Unpaid',
+    PRIMARY KEY (leave_type_id)
+);
+
 CREATE TABLE IF NOT EXISTS leave_request (
     leave_request_id INT NOT NULL AUTO_INCREMENT,
     employee_id INT,
@@ -169,15 +176,6 @@ CREATE TABLE IF NOT EXISTS leave_request (
     PRIMARY KEY (leave_request_id),
     FOREIGN KEY (employee_id) REFERENCES employee_profile(employee_id),
     FOREIGN KEY (leave_type_id) REFERENCES leave_type(leave_type_id)
-);
-
-CREATE TABLE IF NOT EXISTS leave_type (
-    leave_type_id INT NOT NULL AUTO_INCREMENT,
-    leave_name ENUM('Vacation leave', 'Sick leave', 'Emergency leave', 'Maternity leave', 'Paternity leave', 'Leave without pay'),
-    description VARCHAR(255) NULL,
-    max_days INT,
-    pay_flag BOOLEAN COMMENT 'Paid or Unpaid',
-    PRIMARY KEY (leave_type_id)
 );
 
 CREATE TABLE IF NOT EXISTS overtime (
@@ -193,6 +191,12 @@ CREATE TABLE IF NOT EXISTS overtime (
 
 
 /*PAYROLL MANAGEMENT*/
+CREATE TABLE IF NOT EXISTS pay_period (
+    pay_period_id INT NOT NULL AUTO_INCREMENT,
+    start_date DATE,
+    end_date DATE,
+    PRIMARY KEY (pay_period_id)
+);
 
 CREATE TABLE IF NOT EXISTS payroll (
     payroll_id INT NOT NULL AUTO_INCREMENT,
@@ -218,13 +222,6 @@ CREATE TABLE IF NOT EXISTS salary_details (
     end_date DATE,
     PRIMARY KEY (salary_id),
     FOREIGN KEY (employee_id) REFERENCES employee_profile(employee_id)
-);
-
-CREATE TABLE IF NOT EXISTS pay_period (
-    pay_period_id INT NOT NULL AUTO_INCREMENT,
-    start_date DATE,
-    end_date DATE,
-    PRIMARY KEY (pay_period_id)
 );
 
 CREATE TABLE IF NOT EXISTS benefit_type (
@@ -283,3 +280,6 @@ CREATE TABLE IF NOT EXISTS payroll_benefit (
     FOREIGN KEY (payroll_id) REFERENCES payroll(payroll_id),
     FOREIGN KEY (benefit_type_id) REFERENCES benefit_type(benefit_type_id)
 );
+CREATE TABLE INFO(StudentNo smallint not null auto_increment,;
+USE motorph_employee_management_system;
+USE motorph_employee_management_system;
