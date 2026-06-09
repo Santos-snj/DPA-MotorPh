@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS employee_address (
 
 CREATE TABLE IF NOT EXISTS government_ids (
     government_id INT NOT NULL AUTO_INCREMENT,
-    sss_no VARCHAR(13) NOT NULL,
+    sss_no VARCHAR(13) NOT NULL UNIQUE,
     philhealth_no VARCHAR(14) NOT NULL,
     pagibig_no VARCHAR(14) NOT NULL,
     tin_no VARCHAR(15) NOT NULL,
@@ -3458,5 +3458,30 @@ WHERE leave_request_id = 6;
 /* Step 3: Verify whether the data still exists.
 In this test case, the data must be successfully deleted. */
 SELECT * FROM leave_request; 
+
+/*=======================================================================================
+INSERT: UNIQUE CONSTRAINT (QUERY)
+========================================================================================= */
+
+INSERT INTO government_ids (sss_no, philhealth_no, pagibig_no, tin_no, employee_id)
+VALUES
+	('44-4506057-3', '820126853951', '691295330870', '442-605-657-000', 10001);
+
+
+/*=======================================================================================
+INSERT: NOT NULL CONSTRAINT -> (QUERY)
+========================================================================================= */
+
+INSERT INTO employee_profile (last_name, first_name, birthday, phone_number, hire_date, email, supervisor_name, department_id, position_id, status_id, is_active)
+VALUES
+	(NULL,'Manuel III','1983-10-11','0966860270','2020-01-15','mgarcia@motorph.com','N/A',1,1,1,TRUE);
+    
+/*=======================================================================================
+INSERT: DUPLICATE CONSTRAINT -> PRIMARY KEY VIOLATION (QUERY)
+========================================================================================= */
+
+INSERT INTO employee_profile (employee_id, last_name, first_name, birthday, phone_number, hire_date, email, supervisor_name, department_id, position_id, status_id, is_active)
+VALUES
+	(10035, 'Garcia','Manuel III','1983-10-11','0966860270','2020-01-15','mgarcia@motorph.com','N/A',1,1,1,TRUE);
 
 
