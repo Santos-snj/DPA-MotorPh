@@ -1,0 +1,35 @@
+SELECT 
+    p.payroll_date AS 'Processing Date',
+    ep.employee_id AS 'Employee ID',
+    CONCAT(ep.last_name, ', ', ep.first_name) AS 'Employee Name',
+    dept.name AS 'Department',
+    pos.name AS 'Position',
+    
+    -- Earnings Breakdown
+    sd.basic_salary AS 'Basic Salary',
+    p.gross_pay AS 'Gross Pay',
+    
+    -- Allowances (From Position Allowance)
+    COALESCE(pa.rice_subsidy, 0.00) AS 'Rice Subsidy',
+    COALESCE(pa.phone_allowance, 0.00) AS 'Phone Allowance',
+    COALESCE(pa.clothing_allowance, 0.00) AS 'Clothing Allowance',
+    p.total_benefits AS 'Total Allowances/Benefits',
+    
+    -- Deductions & Statutory Taxes
+    p.tax AS 'Withholding Tax',
+    p.total_deductions AS 'Total Deductions',
+    
+    -- Final Take-Home Pay
+    p.net_pay AS 'Net Pay'
+
+FROM payroll p
+JOIN employee_profile ep ON p.employee_id = ep.employee_id
+JOIN department dept ON ep.department_id = dept.department_id
+JOIN employee_position pos ON ep.position_id = pos.position_id
+JOIN salary_details sd ON ep.employee_id = sd.employee_id
+LEFT JOIN position_allowance pa ON pos.position_id = pa.position_id
+JOIN pay_period pp ON p.pay_period_id = pp.pay_period_id
+
+-- Filter statement for filtering specific pay periods during presentations
+-- WHERE pp.start_date = '2026-01-01' AND pp.end_date = '2026-01-15'
+ORDER BY ep.employee_id ASC;
