@@ -1,35 +1,71 @@
 SELECT 
-    p.payroll_date AS 'Processing Date',
+    -- 1. EMPLOYEE DETAILS & INFORMATION
     ep.employee_id AS 'Employee ID',
-    CONCAT(ep.last_name, ', ', ep.first_name) AS 'Employee Name',
-    dept.name AS 'Department',
-    pos.name AS 'Position',
+    CONCAT(ep.last_name, ', ', ep.first_name) AS 'ELECTRONIC PAYSLIP OF',
+    pos.name AS 'Employee Position',
+    'Regular' AS 'Employee Status',
+    DATE_FORMAT(pp.end_date, '%m/%d/%Y') AS 'Payslip Date',
+    CONCAT(DATE_FORMAT(pp.start_date, '%b %e'), ' - ', DATE_FORMAT(pp.end_date, '%b %e')) AS 'Cutoff Period',
+
+    -- 2. SALARY BREAKDOWN & ATTENDANCE METRICS
+    FORMAT(sd.basic_salary, 2) AS 'Basic Salary',
     
-    -- Earnings Breakdown
-    sd.basic_salary AS 'Basic Salary',
-    p.gross_pay AS 'Gross Pay',
+    -- Dynamic calculation of Overtime from your logs
+    FORMAT(COALESCE((
+        SELECT SUM(ot.ot_hours * sd.hourly_rate * ot.multiplier) 
+        FROM overtime ot
+        JOIN attendance att ON ot.attendance_id = att.attendance_id
+        WHERE att.employee_id = p.employee_id 
+          AND ot.date BETWEEN pp.start_date AND pp.end_date
+    ), 0.00), 2) AS 'Overtime',
     
-    -- Allowances (From Position Allowance)
-    COALESCE(pa.rice_subsidy, 0.00) AS 'Rice Subsidy',
-    COALESCE(pa.phone_allowance, 0.00) AS 'Phone Allowance',
-    COALESCE(pa.clothing_allowance, 0.00) AS 'Clothing Allowance',
-    p.total_benefits AS 'Total Allowances/Benefits',
+    -- Attendance Deductions Placeholders
+    '0.00' AS 'Late',
+    '0.00' AS 'Undertime',
+
+    -- 3. ALLOWANCES SECTION
+    FORMAT(COALESCE(pa.phone_allowance, 0.00), 2) AS 'Phone',
+    FORMAT(COALESCE(pa.clothing_allowance, 0.00), 2) AS 'Clothing',
+    FORMAT(COALESCE(pa.rice_subsidy, 0.00), 2) AS 'Rice',
+
+    -- 4. GOVERNMENT STATUTORY DEDUCTIONS
+    FORMAT(COALESCE((
+        SELECT pd.deduction_amount FROM payroll_deduction pd
+        JOIN deduction d ON pd.deduction_id = d.deduction_id
+        JOIN deduction_type dt ON d.deduction_type_id = dt.deduction_type_id
+        WHERE pd.payroll_id = p.payroll_id AND dt.deduction_type LIKE '%SSS%'
+    ), 0.00), 2) AS 'SSS Premium',
     
-    -- Deductions & Statutory Taxes
-    p.tax AS 'Withholding Tax',
-    p.total_deductions AS 'Total Deductions',
+    FORMAT(COALESCE((
+        SELECT pd.deduction_amount FROM payroll_deduction pd
+        JOIN deduction d ON pd.deduction_id = d.deduction_id
+        JOIN deduction_type dt ON d.deduction_type_id = dt.deduction_type_id
+        WHERE pd.payroll_id = p.payroll_id AND dt.deduction_type LIKE '%PhilHealth%'
+    ), 0.00), 2) AS 'Philhealth Deduction',
     
-    -- Final Take-Home Pay
-    p.net_pay AS 'Net Pay'
+    FORMAT(COALESCE((
+        SELECT pd.deduction_amount FROM payroll_deduction pd
+        JOIN deduction d ON pd.deduction_id = d.deduction_id
+        JOIN deduction_type dt ON d.deduction_type_id = dt.deduction_type_id
+        WHERE pd.payroll_id = p.payroll_id AND dt.deduction_type LIKE '%Pag%Ibig%'
+    ), 0.00), 2) AS 'Pag IBIG Deduction',
+    
+    FORMAT(p.tax, 2) AS 'Withholding Tax',
+
+    -- 5. SUMMARY TOTAL BLOCKS
+    FORMAT(p.gross_pay, 2) AS 'Gross Income',
+    FORMAT(p.total_benefits, 2) AS 'Benefits',
+    FORMAT(p.total_deductions, 2) AS 'Deductions',
+    '0.00' AS 'Other Adjustments',
+    FORMAT(p.net_pay, 2) AS 'NET PAY'
 
 FROM payroll p
 JOIN employee_profile ep ON p.employee_id = ep.employee_id
-JOIN department dept ON ep.department_id = dept.department_id
 JOIN employee_position pos ON ep.position_id = pos.position_id
 JOIN salary_details sd ON ep.employee_id = sd.employee_id
 LEFT JOIN position_allowance pa ON pos.position_id = pa.position_id
 JOIN pay_period pp ON p.pay_period_id = pp.pay_period_id
 
--- Filter statement for filtering specific pay periods during presentations
--- WHERE pp.start_date = '2026-01-01' AND pp.end_date = '2026-01-15'
-ORDER BY ep.employee_id ASC;
+-- Filter parameters to query any employee's cutoff period
+WHERE ep.last_name = 'Garcia' 
+   OR ep.employee_id = 10001;
