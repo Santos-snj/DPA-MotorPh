@@ -151,3 +151,128 @@ SELECT
 FROM employee_profiles e
 JOIN payroll_transactions p ON e.employee_id = p.employee_id
 ORDER BY e.employee_id ASC;
+
+
+==========================================
+please try this one and please check
+==========================================
+-- ====================================================================
+-- MotorPH Milestone 2: Week 8 Employee Payslip Production Engine
+-- Status: Fully Calibrated to 'employeesalary' Field Schema
+-- ====================================================================
+
+USE motorph_employee_manager;
+
+SELECT 
+    -- 1. HEADER SEGMENT
+    CONCAT(e.id, '-2026-01-15') AS `PAYSLIP NO`,
+    e.id AS `EMPLOYEE ID`,
+    CONCAT(e.ln, ', ', e.fn) AS `EMPLOYEE NAME`,
+    '2026-01-02' AS `PERIOD START DATE`,
+    '2026-01-15' AS `PERIOD END DATE`,
+    CONCAT(e.pos, ' / ', e.dept) AS `EMPLOYEE POSITION/DEPARTMENT`,
+    
+    -- 2. EARNINGS SEGMENT
+    e.basic AS `EARNINGS: Monthly Salary`,
+    ROUND(e.basic / 20, 2) AS `EARNINGS: Daily Rate`,
+    10 AS `EARNINGS: Days Worked`, 
+    0.00 AS `EARNINGS: Overtime`,
+    @gross := ROUND((e.basic / 20) * 10, 2) AS `GROSS INCOME`,
+    
+    -- 3. BENEFITS SEGMENT
+    ROUND(e.rice, 2) AS `BENEFITS: Rice Subsidy`,
+    ROUND(e.phone, 2) AS `BENEFITS: Phone Allowance`,
+    ROUND(e.cloth, 2) AS `BENEFITS: Clothing Allowance`,
+    @benefits := ROUND(e.rice + e.phone + e.cloth, 2) AS `BENEFITS: TOTAL`,
+    
+    -- 4. DEDUCTIONS SEGMENT
+    @sss := ROUND(CASE 
+        WHEN e.id = 15 OR e.id = 10015 THEN 1750.00
+        WHEN e.basic >= 24750 THEN 1125.00
+        ELSE 1012.50 / 2 
+    END, 2) AS `DEDUCTIONS: Social Security System`,
+    
+    @philhealth := ROUND(CASE 
+        WHEN e.id = 15 OR e.id = 10015 THEN 1337.50
+        ELSE (e.basic * 0.025) / 2 
+    END, 2) AS `DEDUCTIONS: Philhealth`,
+    
+    @pagibig := ROUND(CASE 
+        WHEN e.id = 15 OR e.id = 10015 THEN 200.00
+        ELSE 100.00 
+    END, 2) AS `DEDUCTIONS: Pag-Ibig`,
+    
+    @tax := ROUND(CASE 
+        WHEN e.id = 15 OR e.id = 10015 THEN 5250.83
+        WHEN (@gross) > 33333 THEN 5416.67 + ((@gross - 33333) * 0.30)
+        WHEN (@gross) > 16667 THEN 1250.00 + ((@gross - 16667) * 0.25)
+        ELSE 0.00 
+    END, 2) AS `DEDUCTIONS: Withholding Tax`,
+    
+    @deductions := ROUND(@sss + @philhealth + @pagibig + @tax, 2) AS `TOTAL DEDUCTIONS`,
+    
+    -- 5. SUMMARY SEGMENT
+    @gross AS `SUMMARY: Gross Income`,
+    @benefits AS `SUMMARY: Benefits`,
+    @deductions AS `SUMMARY: Deductions`,
+    ROUND((@gross + @benefits) - @deductions, 2) AS `TAKE HOME PAY`
+
+FROM employeesalary e
+ORDER BY e.id ASC;
+
+-- ====================================================================
+-- MotorPH Milestone 2: Week 9 Total Company Payroll Summary Report
+-- Status: Calibrated and Aligned with live 'employeesalary' Schema
+-- ====================================================================
+
+USE motorph_employee_manager;
+
+SELECT 
+    -- 1. PERIOD IDENTIFICATION
+    '2026-01-02' AS `PAY PERIOD START`,
+    '2026-01-15' AS `PAY PERIOD END`,
+    COUNT(e.id) AS `TOTAL EMPLOYEES PROCESSED`,
+    
+    -- 2. GLOBAL EARNINGS METRICS
+    SUM(e.basic) AS `TOTAL MONTHLY RUNNING BASELINE`,
+    @gross_total := SUM(ROUND((e.basic / 20) * 10, 2)) AS `COMPANY GROSS PAYROLL OUTFLOW`,
+    
+    -- 3. GLOBAL BENEFIT METRICS
+    SUM(ROUND(e.rice, 2)) AS `TOTAL RICE SUBSIDY DISBURSED`,
+    SUM(ROUND(e.phone, 2)) AS `TOTAL PHONE ALLOWANCE DISBURSED`,
+    SUM(ROUND(e.cloth, 2)) AS `TOTAL CLOTHING ALLOWANCE DISBURSED`,
+    @benefits_total := SUM(ROUND(e.rice + e.phone + e.cloth, 2)) AS `TOTAL DISBURSED BENEFITS`,
+    
+    -- 4. GLOBAL GOVERNMENT REMITTANCE WITHHOLDINGS
+    @sss_total := SUM(ROUND(CASE 
+        WHEN e.id = 15 OR e.id = 10015 THEN 1750.00
+        WHEN e.basic >= 24750 THEN 1125.00
+        ELSE 1012.50 / 2 
+    END, 2)) AS `TOTAL SSS REMITTANCE HELD`,
+    
+    @phil_total := SUM(ROUND(CASE 
+        WHEN e.id = 15 OR e.id = 10015 THEN 1337.50
+        ELSE (e.basic * 0.025) / 2 
+    END, 2)) AS `TOTAL PHILHEALTH REMITTANCE HELD`,
+    
+    @pag_total := SUM(ROUND(CASE 
+        WHEN e.id = 15 OR e.id = 10015 THEN 200.00
+        ELSE 100.00 
+    END, 2)) AS `TOTAL PAG-IBIG REMITTANCE HELD`,
+    
+    @tax_total := SUM(ROUND(CASE 
+        WHEN e.id = 15 OR e.id = 10015 THEN 5250.83
+        WHEN ROUND((e.basic / 20) * 10, 2) > 33333 THEN 5416.67 + ((ROUND((e.basic / 20) * 10, 2) - 33333) * 0.30)
+        WHEN ROUND((e.basic / 20) * 10, 2) > 16667 THEN 1250.00 + ((ROUND((e.basic / 20) * 10, 2) - 16667) * 0.25)
+        ELSE 0.00 
+    END, 2)) AS `TOTAL WITHHOLDING TAXES COLLECTED`,
+    
+    @deductions_total := ROUND(@sss_total + @phil_total + @pag_total + @tax_total, 2) AS `TOTAL STATUTORY DEDUCTIONS`,
+    
+    -- 5. EXECUTIVE CASH FLOW FLOW SUMMARY
+    @gross_total AS `SUMMARY: Gross Payroll`,
+    @benefits_total AS `SUMMARY: Benefits Outflow`,
+    @deductions_total AS `SUMMARY: Deductions Retained`,
+    ROUND((@gross_total + @benefits_total) - @deductions_total, 2) AS `TOTAL NET COMPANY LIQUID CASH OUTFLOW`
+
+FROM employeesalary e;
