@@ -1,4 +1,3 @@
-
 /* ================================================================
    DATABASE SETUP
    ================================================================*/
@@ -975,14 +974,14 @@ INSERT INTO deduction (deduction_type_id, lower_amount, upper_amount, tax_base, 
 (1,23750.00, 24249.99, NULL,  1080.00),
 (1,24250.00, 24749.99, NULL,  1102.50),
 (1,24750.00,99999999.99,NULL, 1125.00),
--- PhilHealth (monthly premium = 5% of basic salary; employee pays 50%)
--- tax_base = 0.05 (5% total premium rate); b_rate = fixed floor/ceiling
-(2,     0.00,  10000.00, 0.05,  500.00),   -- floor: monthly premium = 500, EE pays 250
-(2, 10000.01,  99999.99, 0.05,  NULL),     -- no cap until ceiling: EE pays 2.5% of basic
-(2,200000.00,99999999.99,0.05,10000.00),   -- ceiling: monthly premium = 10000, EE pays 5000
--- Pag-IBIG (employee contribution, capped at 100 per month)
-(3,  1000.00,   1500.00, 0.01, 0.01),
-(3,  1500.01,99999999.99,0.02, 0.02),
+-- PhilHealth (monthly premium = 3% of basic salary; employee pays 50%)
+-- tax_base = 0.03 (3% total premium rate); b_rate = fixed floor/ceiling (TOTAL premium, not EE share)
+(2,     0.00,  10000.00, 0.03,  300.00),   -- floor: monthly premium = 300, EE pays 150
+(2, 10000.01,  59999.99, 0.03,  NULL),     -- no cap until ceiling: EE pays 1.5% of basic
+(2, 60000.00,99999999.99,0.03, 1800.00),   -- ceiling: monthly premium = 1800, EE pays 900
+-- Pag-IBIG (employee contribution rate varies by salary, capped at 100 per month)
+(3,  1000.00,   1500.00, 0.01, 0.01),      -- 1% for 1,000–1,500
+(3,  1500.01,99999999.99,0.02, 0.02),      -- 2% for over 1,500
 -- Withholding Tax (monthly taxable income brackets, TRAIN Law)
 (4,      0.00,  20832.00, 0.00,  0.00),
 (4,  20833.00,  33332.00, 0.00,  0.20),
@@ -1077,36 +1076,47 @@ sss_calc AS (
     WHERE s.monthly_basic BETWEEN d.lower_amount AND d.upper_amount
 ),
 philhealth_calc AS (
-    /* PhilHealth 2024: 5% of monthly basic (TOTAL premium).
-       Employee pays 50% = 2.5% of monthly basic.
-       Floor: ₱250/month employee share (basic ≤ ₱10,000)
-       Ceiling: ₱5,000/month employee share (basic ≥ ₱200,000)
+    /* PhilHealth (per provided table): 3% of monthly basic = TOTAL premium.
+       Employee pays 50% = 1.5% of monthly basic.
+       Floor: basic <= 10,000  -> total premium = 300  -> EE share = 150
+       Ceiling: basic >= 60,000 -> total premium = 1,800 -> EE share = 900
        For semi-monthly payroll, divide monthly employee share by 2.      */
     SELECT
         s.employee_id,
         ROUND(
             CASE
-                WHEN s.monthly_basic <= 10000.00  THEN 250.00
-                WHEN s.monthly_basic >= 200000.00 THEN 5000.00
-                ELSE s.monthly_basic * 0.025
+                WHEN s.monthly_basic <= 10000.00  THEN 150.00
+                WHEN s.monthly_basic >= 60000.00  THEN 900.00
+                ELSE s.monthly_basic * 0.015
             END, 2
         )                                             AS philhealth_monthly_ee,
         ROUND(
             CASE
-                WHEN s.monthly_basic <= 10000.00  THEN 250.00
-                WHEN s.monthly_basic >= 200000.00 THEN 5000.00
-                ELSE s.monthly_basic * 0.025
+                WHEN s.monthly_basic <= 10000.00  THEN 150.00
+                WHEN s.monthly_basic >= 60000.00  THEN 900.00
+                ELSE s.monthly_basic * 0.015
             END / 2, 2
         )                                             AS philhealth_semi
     FROM salary s
 ),
 pagibig_calc AS (
-    /* Pag-IBIG: Employee contributes 2% of monthly basic, capped at ₱100/month.
+    /* Pag-IBIG (per provided table): 1% of monthly basic for ₱1,000–₱1,500,
+       2% of monthly basic for over ₱1,500. Capped at ₱100/month either way.
        For semi-monthly payroll, divide by 2.                             */
     SELECT
         s.employee_id,
-        ROUND(LEAST(s.monthly_basic * 0.02, 100.00), 2)  AS pagibig_monthly,
-        ROUND(LEAST(s.monthly_basic * 0.02, 100.00) / 2, 2) AS pagibig_semi
+        ROUND(
+            LEAST(
+                s.monthly_basic * CASE WHEN s.monthly_basic <= 1500.00 THEN 0.01 ELSE 0.02 END,
+                100.00
+            ), 2
+        )                                                AS pagibig_monthly,
+        ROUND(
+            LEAST(
+                s.monthly_basic * CASE WHEN s.monthly_basic <= 1500.00 THEN 0.01 ELSE 0.02 END,
+                100.00
+            ) / 2, 2
+        )                                                AS pagibig_semi
     FROM salary s
 ),
 gross_calc AS (
@@ -1144,7 +1154,9 @@ tax_calc AS (
             - ph.philhealth_monthly_ee
             - pi.pagibig_monthly,
             0
-        )                                             AS taxable_monthly,
+        )
+        
+	AS taxable_monthly,
         ROUND(
             CASE
                 WHEN (g.monthly_basic - sss.sss_monthly - ph.philhealth_monthly_ee - pi.pagibig_monthly) <= 20832
@@ -1214,12 +1226,12 @@ SELECT
 
     /* ─── Summary ─── */
     ROUND(sss.sss_semi + ph.philhealth_semi + pi.pagibig_semi + tx.tax_semi, 2)
-                                                      AS total_deductions_semi,
+													AS total_deductions_semi,
     ROUND(g.gross_semi_monthly
         - sss.sss_semi
         - ph.philhealth_semi
         - pi.pagibig_semi
-        - tx.tax_semi, 2)                             AS net_pay_semi,
+        - tx.tax_semi, 2)                           AS net_pay_semi,
 
     g.hourly_rate
 FROM employee_profile ep
@@ -1361,7 +1373,7 @@ SELECT
     ROUND(
         SUM(
             GREATEST(
-                TIME_TO_SEC(TIMEDIFF(a.time_in, '08:00:00')) / 3600,
+                TIME_TO_SEC(TIMEDIFF(a.time_in, '08:10:00')) / 3600,
                 0
             )
         ), 2
@@ -1382,7 +1394,7 @@ SELECT
         sd.hourly_rate *
         SUM(
             GREATEST(
-                TIME_TO_SEC(TIMEDIFF(a.time_in, '08:00:00')) / 3600,
+                TIME_TO_SEC(TIMEDIFF(a.time_in, '08:10:00')) / 3600,
                 0
             )
         ), 2
@@ -1571,7 +1583,7 @@ VALUES
 ===================================================================================== */
 
 
-/* =====================================================================================
+/* ====================================================================================
    QUICK REFERENCE — SAMPLE QUERIES TO TEST IF THE REPORTS ARE SHOWING
   =====================================================================================
 
